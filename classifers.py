@@ -82,15 +82,25 @@ class RFClassifier:
             raw_scores= load_scores(StdMotor)
             std_scores=filt_scores(raw_scores)
             id=self.data['subject_id']
-
-            filtered=std_scores[std_scores['TaskAbb']==self.task][std_scores['SubjID'].isin(id)]
+            if self.task=='Ftn':
+                tasks=['FtnL','FtnR']
+                filtered = std_scores[std_scores['TaskAbb'].isin(tasks)][std_scores['SubjID'].isin(id)]
+            else:
+                filtered=std_scores[std_scores['TaskAbb']==self.task][std_scores['SubjID'].isin(id)]
 
             scores=[]
             for i in range(len(self.data)):
-                SubjID=self.data['subject_id'].iloc[[i]]
+                SubjID=id.iloc[[i]]
                 visit=self.data['timepoint'].iloc[[i]]
-                result = filtered.loc[(filtered['SubjID'].values==SubjID.values)&(filtered['Visit'].values==visit.values)]
-                scores.append(result[label_name].tolist()[0])
+                side=self.data['activity'].iloc[[i]]
+                result = filtered.loc[(filtered['SubjID'].values==SubjID.values)&
+                                      (filtered['Visit'].values==visit.values)&
+                                      (filtered['TaskAbb'].values==side.values)]
+                if len(result)==1:
+                    scores.append(result[label_name].tolist()[0])
+                else:
+                    raise Exception("cannot match the event in the scores! check the 'SubjId,' 'Visit' and 'TaskAbb")
+
             self.data[label_name]=scores
         self._labels=self.data[label_name]
 

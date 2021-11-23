@@ -29,7 +29,7 @@ def load_scores(score_type):
 
 def filt_scores(score:pd.DataFrame):
     for i in range(len(score)):
-        value=score['Visit'].iloc[[i]]
+        value=score['Visit'].iloc[[i]].values
         if 'Month' in str(value):
             score['Visit'].iloc[[i]]=7
         elif '150' in str(value):
@@ -52,7 +52,7 @@ def filt_data(raw_data:pd.DataFrame):
     '''
     data=pd.DataFrame(raw_data['data'])
     subjID=data['subject_id']
-    boolean_filtered_subjID = [bool(i//1000) for i in subjID]
+    boolean_filtered_subjID = [bool(i//1000) for i in subjID]# filter out Baylor subjects
     filtered_subjiD=subjID.loc[boolean_filtered_subjID]
     filtered_data=data[data['subject_id'].isin(filtered_subjiD)]
     raw_data['data']=filtered_data

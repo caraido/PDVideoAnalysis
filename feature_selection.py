@@ -175,7 +175,7 @@ class GaitFeatures:
 
     # feature 1
     def step_frequency(self,frame_rate=15):
-        # only calculate
+
         if 'peak_legs' in self.data.keys() and 'trough_legs' in self.data.keys():
             peak=self.data['peak_legs']
             trough=self.data['trough_legs']
@@ -201,7 +201,7 @@ class GaitFeatures:
             horizontal_angle_wrists=self.data['horizontal_angle_wrists'].to_list()
         else:
             horizontal_angle_wrists=self.horizontal_angle_wrists()
-        median_velocity=[np.median(np.diff(horizontal_angle_wrists[i])/frame_rate) for i in range(len(self.keypoints_list))]
+        median_velocity=[np.median(np.abs(np.diff(horizontal_angle_wrists[i])/frame_rate)) for i in range(len(self.keypoints_list))]
 
         self.data['median_velocity'] = median_velocity
         return median_velocity
@@ -293,39 +293,165 @@ class FtnFeatures:
         self.keypoint_names = self.raw_data['keypoint_names']
         self.get_keypoint_indices()
 
+        # we don't discriminate on left or right side. This will be used as an index to tell the algorithm which arm to analyze
+        self.side=self.data['activity'].tolist()
+
     def get_keypoint_indices(self):
         self.nose = self.keypoint_names.index('Nose')
         self.wrist_R = self.keypoint_names.index('Right Wrist')
         self.wrist_L = self.keypoint_names.index('Left Wrist')
-        self.hip_R = self.keypoint_names.index('Right Hip')
-        self.hip_L = self.keypoint_names.index('Left Hip')
-        self.ankle_R = self.keypoint_names.index('Right Ankle')
-        self.ankle_L = self.keypoint_names.index('Left Ankle')
-        # self.heel_R=list(self.keypoint_names.keys()).index('Right Heel')
-        # self.heel_L=list(self.keypoint_names.keys()).index('Left Heel')
+        self.elbow_L = self.keypoint_names.index('Left Elbow')
+        self.elbow_R = self.keypoint_names.index('Right Elbow')
+        self.shoulder_L = self.keypoint_names.index('Left Shoulder')
+        self.shoulder_R = self.keypoint_names.index('Right Shoulder')
+
+    # signal 1
+    def elbow_angle(self):
+        angles=[]
+        for i,k in enumerate(self.keypoints_list):
+            side=self.side[i]
+            if 'L' in side:
+                left_elbow = k[:, self.elbow_L, :]
+                left_wrist = k[:, self.wrist_L, :]
+                left_shoulder = k[:, self.shoulder_L, :]
+                # forearm vector
+                forearm_v_L = left_wrist - left_elbow
+                # arm vector
+                arm_v_L = left_shoulder - left_elbow
+                angle = vg.angle(arm_v_L, forearm_v_L,units='rad')
+            elif 'R' in side:
+                right_elbow = k[:, self.elbow_R, :]
+                right_wrist = k[:, self.wrist_R, :]
+                right_shoulder = k[:, self.shoulder_R, :]
+                # forearm vector
+                forearm_v_R = right_wrist - right_elbow
+                # arm vector
+                arm_v_R = right_shoulder - right_elbow
+                angle =vg.angle(arm_v_R,forearm_v_R,units='rad')
+            else:
+                raise Exception("check the task! There is no L or R in the task name")
+
+            angles.append(angle)
+        self.data['angles']=angles
+        return angles
+
+    # signal 2
+    def p_t_elbow_angle(self,distance=25):
+        if 'angles' in self.data.keys():
+            feature = self.data['angles'].to_numpy()
+        else:
+            feature = self.elbow_angle()
+        peak = [find_peaks(feature[i], height=np.nanmean(feature[i]), distance=distance, )[0] for i in range(len(feature))]
+        trough = [find_peaks(-feature[i], height=np.nanmean(-feature[i]), distance=distance, )[0] for i in range(len(feature))]
+        self.data['peak_angles'] = peak
+        self.data['trough_angles'] = trough
+        return peak, trough
 
     # feature 1
     def ftn_frequency(self):
         # a measurement of tapping nose frequency
-        pass
+        if 'peak_angles' in self.data.keys() and 'trough_angles' in self.data.keys():
+            peak = self.data['peak_angles']
+            trough = self.data['trough_angles']
+        else:
+            peak, trough = self.p_t_elbow_angle()
+
+        this_value=[]
+        for i in range(len(peak)):
+            min_len=np.minimum(len(peak[i]),len(trough[i]))
+            peak_i=peak[i][:min_len]
+            trough_i=trough[i][:min_len]
+
+            freq=np.abs(np.sum((peak_i-trough_i))/min_len)# maybe need to use gamma poison model to infer the frequency
+            this_value.append((freq))
+
+        self.data['ftn_frequency']=this_value
+        return this_value
 
     # feature 2
-    def med_ang_speed(self):
+    def avg_ang_speed(self):
         # measure the average angular speed of each finger to nose trial. angle is formed by the arm and the forearm
-        pass
+        if 'angles' in self.data.keys():
+            feature = self.data['angles'].to_numpy()
+        else:
+            feature = self.elbow_angle()
+
+        this_value=[]
+        for ftr in feature:
+            speed=np.abs(np.diff(ftr))
+            avg_speed=(np.nansum(speed)-np.nanmin(speed)-np.nanmax(speed))/(len(speed)-2-np.sum(np.isnan(speed)))
+            this_value.append(avg_speed)
+        self.data['avg_ang_speed']=this_value
+        return this_value
 
     # feature 3
-    def med_ang_accel(self):
-        # measure the average acceleration of each finger to nose trial
-        pass
+    def med_ang_speed(self):
+        # don't know if this is an important feature
+        if 'angles' in self.data.keys():
+            feature = self.data['angles'].to_numpy()
+        else:
+            feature = self.elbow_angle()
+
+        this_value=[]
+        for ftr in feature:
+            speed=np.abs(np.diff(ftr))
+            med_speed=np.nanmedian(speed)
+            this_value.append(med_speed)
+        self.data['med_ang_speed']=this_value
+        return this_value
 
     # feature 4
-    def pause_time(self,threshold):
-        # measure how many times the patient pauses the task
-        pass
+    def med_ang_accel(self):
+        # measure the average acceleration of each finger to nose trial
+        # patients with PD tend to initiate movement slower
+        # measure the average angular speed of each finger to nose trial. angle is formed by the arm and the forearm
+        if 'angles' in self.data.keys():
+            feature = self.data['angles'].to_numpy()
+        else:
+            feature = self.elbow_angle()
+
+        this_value=[]
+        for ftr in feature:
+            speed=np.diff(ftr)
+            accel=np.abs(np.diff(speed))
+            med_accel= np.nanmedian(accel)
+            this_value.append(med_accel)
+        self.data['med_ang_accel']=this_value
+        return this_value
+
+    # feature 5
+    def cv_interval(self):
+        # measure the coefficient variance of the peak and trough interval
+        # a measurement of tapping nose frequency
+        if 'peak_angles' in self.data.keys() and 'trough_angles' in self.data.keys():
+            peak = self.data['peak_angles']
+            trough = self.data['trough_angles']
+        else:
+            peak, trough = self.p_t_elbow_angle()
+
+        this_value = []
+        for i in range(len(peak)):
+            min_len = np.minimum(len(peak[i]), len(trough[i]))
+            # make sure there're same amount of peaks and troughs
+            peak_i = peak[i][:min_len]
+            trough_i = trough[i][:min_len]
+
+            # calculate the intervals
+            intervals = np.abs(peak_i-trough_i)
+
+            # calculate the cv of the intervals
+            sd_intervals=np.std(intervals)
+            mean_intervals=np.mean(intervals)
+            cv_intervals = sd_intervals/mean_intervals
+            this_value.append(cv_intervals)
+        self.data['cv_interval']=this_value
+        return this_value
+
+    # potential feature: amplitude
+    # the amplitude of the movement may not be significant since it depends on the location of the assessor's finger
 
 
-class RamFeature:
+class RamFeatures:
 
     # TODO: need to be changed
     def __init__(self, data_dense):
