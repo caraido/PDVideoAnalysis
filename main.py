@@ -84,8 +84,10 @@ if __name__ == '__main__':
 
     rfc=RFClassifier(ftn.data)
     rfc.indie_var=feature_list
-    rfc.task = 'Ftn' # announce task first, then label
+    # task can be 'Wlkg', 'Ftn', 'Ram'
+    rfc.task = 'Ftn' # announce task first, then label second
     rfc.labels='Overall'
+    rfc.labels='Bradykinesia'
     rfc.med='1'
     rfc(kfold=5,ordinal=False)
 

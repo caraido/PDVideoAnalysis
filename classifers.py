@@ -10,6 +10,7 @@ from utils import emit_nan
 import numpy as np
 
 
+# use this wrapper to turn a regular classifier into a ordinal classifier
 class OrdinalClassifier:
 
     def __init__(self,clf):
@@ -45,6 +46,8 @@ class OrdinalClassifier:
         return np.argmax(self.predict_proba(X),axis=1)
 
 
+# curerntly using random forest classifier
+# TODO: make a classifier base class to inherit if we want to try more classifying methods
 class RFClassifier:
     # random forest classifier
     def __init__(self,data:pd.DataFrame):
@@ -52,11 +55,23 @@ class RFClassifier:
         self.keys=self.data.keys()
         self.u_keys=None
         self.n_Data=len(data)
-        self.med = None # can be on of 1,2,3,4,5,6,7
-        self.task='Wlkg' # also could be "FtnL" "FtnR" "RamL" RamR"
+        self.med = None # can be on of 1,2,3,4,5,6,7, currently not implemented
+        self.task='Wlkg' # could be "FtnL" "FtnR" "RamL" RamR" "Wlkg"
+        self.std_scores=StdMotor # can be other MDS-UPDRS scores or other scores
 
-        self._indie_var=None
-        self._labels=None
+
+
+    @property
+    def std_scores(self):
+        return self._std_scores
+
+    @std_scores.setter
+    def std_scores(self,labelset):
+        if labelset is not None:
+            raw_scores = load_scores(labelset)
+            std_scores = filt_scores(raw_scores)
+            self._std_scores=std_scores
+            self._raw_std_scores=raw_scores
 
     @property
     def indie_var(self):
@@ -79,14 +94,14 @@ class RFClassifier:
     @labels.setter
     def labels(self,label_name:str):
         if label_name not in self.keys:
-            raw_scores= load_scores(StdMotor)
-            std_scores=filt_scores(raw_scores)
             id=self.data['subject_id']
-            if self.task=='Ftn':
-                tasks=['FtnL','FtnR']
-                filtered = std_scores[std_scores['TaskAbb'].isin(tasks)][std_scores['SubjID'].isin(id)]
+            if self.task!='Wlkg':
+                tasks=[self.task+'L',self.task+'R']
+
+                filtered = self.std_scores[self.std_scores['TaskAbb'].isin(tasks)][self.std_scores['SubjID'].isin(id)]
             else:
-                filtered=std_scores[std_scores['TaskAbb']==self.task][std_scores['SubjID'].isin(id)]
+                tasks=self.task
+                filtered=self.std_scores[self.std_scores['TaskAbb']==tasks][self.std_scores['SubjID'].isin(id)]
 
             scores=[]
             for i in range(len(self.data)):
@@ -97,7 +112,13 @@ class RFClassifier:
                                       (filtered['Visit'].values==visit.values)&
                                       (filtered['TaskAbb'].values==side.values)]
                 if len(result)==1:
-                    scores.append(result[label_name].tolist()[0])
+                    if 'L' in side.values[0] and label_name!='Overall':
+                        label=label_name+' - Left'
+                    elif 'R' in side.values[0] and label_name!='Overall':
+                        label=label_name + ' - Right'
+                    else:
+                        label=label_name
+                    scores.append(result[label].tolist()[0])
                 else:
                     raise Exception("cannot match the event in the scores! check the 'SubjId,' 'Visit' and 'TaskAbb")
 
