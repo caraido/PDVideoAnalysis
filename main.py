@@ -82,14 +82,20 @@ if __name__ == '__main__':
         'cv_interval',
     ]
 
-    rfc=RFClassifier(ftn.data)
+    # feed the data to the classifier to the classification
+    rfc = RFClassifier(ftn.data)
+    # or change the dataset by assigning it to self.data
+    rfc.data=ftn.data
+
+    # assigning the independent variables (features) for the classifier
     rfc.indie_var=feature_list
+
     # task can be 'Wlkg', 'Ftn', 'Ram'
     rfc.task = 'Ftn' # announce task first, then label second
+    # labels can be 'Overall', 'Bradykinesia', 'Dyskinesia'
     rfc.labels='Overall'
-    rfc.labels='Bradykinesia'
     rfc.med='1'
-    rfc(kfold=5,ordinal=False)
+    rfc(kfold=5,ordinal=True)
 
     ##################
     # plotting signals

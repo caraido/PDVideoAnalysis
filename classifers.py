@@ -46,20 +46,29 @@ class OrdinalClassifier:
         return np.argmax(self.predict_proba(X),axis=1)
 
 
-# curerntly using random forest classifier
+# currerntly using random forest classifier
 # TODO: make a classifier base class to inherit if we want to try more classifying methods
 class RFClassifier:
     # random forest classifier
     def __init__(self,data:pd.DataFrame):
-        self.data=data
-        self.keys=self.data.keys()
-        self.u_keys=None
-        self.n_Data=len(data)
+        self.keys=None
+        self.n_Data=None
+        self.u_keys = None
         self.med = None # can be on of 1,2,3,4,5,6,7, currently not implemented
+
+        self.data=data
         self.task='Wlkg' # could be "FtnL" "FtnR" "RamL" RamR" "Wlkg"
         self.std_scores=StdMotor # can be other MDS-UPDRS scores or other scores
 
+    @property
+    def data(self):
+        return self._data
 
+    @data.setter
+    def data(self,data:pd.DataFrame):
+        self._data=data
+        self.keys=data.keys()
+        self.n_Data=len(data)
 
     @property
     def std_scores(self):
