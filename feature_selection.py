@@ -305,6 +305,11 @@ class FtnFeatures:
         self.shoulder_L = self.keypoint_names.index('Left Shoulder')
         self.shoulder_R = self.keypoint_names.index('Right Shoulder')
 
+    def get_joint_index(self,joint_name:str):
+        # need a part to handle exceptions.
+        # now we assume we always enter the correct joint name
+        return self.keypoint_names.index(joint_name)
+
     # signal 1
     def elbow_angle(self):
         angles=[]
@@ -347,6 +352,25 @@ class FtnFeatures:
         self.data['trough_angles'] = trough
         return peak, trough
 
+    # signal 3
+    def ftn_distance(self):
+        distance=[]
+        for i,k in enumerate(self.keypoints_list):
+            side = self.side[i]
+            if 'L' in side:
+                left_wrist = k[:, self.wrist_L, :]
+                left_shoulder = k[:, self.shoulder_L, :]
+                dist=np.linalg.norm(left_shoulder-left_wrist,axis=1)
+            elif 'R' in side:
+                right_wrist = k[:, self.wrist_R, :]
+                right_shoulder = k[:, self.shoulder_R, :]
+                dist=np.linalg.norm(right_shoulder-right_wrist,axis=1)
+            else:
+                raise Exception("check the task! There is no L or R in the task name")
+            distance.append(dist)
+        self.data['ftn_distance']=distance
+        return distance
+
     # feature 1
     def ftn_frequency(self):
         # a measurement of tapping nose frequency
@@ -387,6 +411,7 @@ class FtnFeatures:
     # feature 3
     def med_ang_speed(self):
         # don't know if this is an important feature
+        # it turns out this is the most important feature according to the feature importance map
         if 'angles' in self.data.keys():
             feature = self.data['angles'].to_numpy()
         else:

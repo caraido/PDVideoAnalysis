@@ -16,6 +16,7 @@ class OrdinalClassifier:
     def __init__(self,clf):
         self.clf=clf
         self.clfs={}
+        self.feature_importances=[]
 
     def fit(self,X,y):
         self.unique_class=np.sort(np.unique(y))
@@ -25,6 +26,9 @@ class OrdinalClassifier:
                 binary_y=(y>self.unique_class[i]).astype(np.uint8)
                 clf=clone(self.clf)
                 clf.fit(X,binary_y)
+                # this specific line is for random tree regression. a temporary solution to grasp feature importance
+                self.feature_importances.append(clf.feature_importances_)
+
                 self.clfs[i]=clf
 
     def predict_proba(self,X):
@@ -55,7 +59,7 @@ class RFClassifier:
         self.n_Data=None
         self.u_keys = None
         self.med = None # can be on of 1,2,3,4,5,6,7, currently not implemented
-
+        self.clf=None
         self.data=data
         self.task='Wlkg' # could be "FtnL" "FtnR" "RamL" RamR" "Wlkg"
         self.std_scores=StdMotor # can be other MDS-UPDRS scores or other scores
@@ -108,72 +112,110 @@ class RFClassifier:
                 tasks=[self.task+'L',self.task+'R']
 
                 filtered = self.std_scores[self.std_scores['TaskAbb'].isin(tasks)][self.std_scores['SubjID'].isin(id)]
+                scores = []
+                for i in range(len(self.data)):
+                    SubjID = id.iloc[[i]]
+                    visit = self.data['timepoint'].iloc[[i]]
+                    side = self.data['activity'].iloc[[i]]
+                    result = filtered.loc[(filtered['SubjID'].values == SubjID.values) &
+                                          (filtered['Visit'].values == visit.values) &
+                                          (filtered['TaskAbb'].values == side.values)]
+                    if len(result) == 1:
+                        if 'L' in side.values[0] and label_name != 'Overall':
+                            label = label_name + ' - Left'
+                        elif 'R' in side.values[0] and label_name != 'Overall':
+                            label = label_name + ' - Right'
+                        else:
+                            label = label_name
+                        scores.append(result[label].tolist()[0])
+                    else:
+                        raise Exception(
+                            "cannot match the event in the scores! check the 'SubjId,' 'Visit' and 'TaskAbb")
             else:
                 tasks=self.task
                 filtered=self.std_scores[self.std_scores['TaskAbb']==tasks][self.std_scores['SubjID'].isin(id)]
 
-            scores=[]
-            for i in range(len(self.data)):
-                SubjID=id.iloc[[i]]
-                visit=self.data['timepoint'].iloc[[i]]
-                side=self.data['activity'].iloc[[i]]
-                result = filtered.loc[(filtered['SubjID'].values==SubjID.values)&
-                                      (filtered['Visit'].values==visit.values)&
-                                      (filtered['TaskAbb'].values==side.values)]
-                if len(result)==1:
-                    if 'L' in side.values[0] and label_name!='Overall':
-                        label=label_name+' - Left'
-                    elif 'R' in side.values[0] and label_name!='Overall':
-                        label=label_name + ' - Right'
+                scores=[]
+                for i in range(len(self.data)):
+                    SubjID=id.iloc[[i]]
+                    visit=self.data['timepoint'].iloc[[i]]
+                    side=self.data['activity'].iloc[[i]]
+                    if side.values[0]=='Wlkg':
+                        side.values[0]='Walking'
+                    result = filtered.loc[(filtered['SubjID'].values==SubjID.values)&
+                                          (filtered['Visit'].values==visit.values)&
+                                          (filtered['Task'].values==side.values)]
+                    if len(result)==1:
+                        if 'L' in side.values[0] and label_name!='Overall':
+                            label=label_name+' - Left'
+                        elif 'R' in side.values[0] and label_name!='Overall':
+                            label=label_name + ' - Right'
+                        else:
+                            label=label_name
+                        scores.append(result[label].tolist()[0])
                     else:
-                        label=label_name
-                    scores.append(result[label].tolist()[0])
-                else:
-                    raise Exception("cannot match the event in the scores! check the 'SubjId,' 'Visit' and 'TaskAbb")
+                        raise Exception(f"{SubjID.values}_{visit.values}_{side.values}_[{label_name}]_cannot match the event in the scores! check the 'SubjId,' 'Visit' and 'TaskAbb")
 
             self.data[label_name]=scores
         self._labels=self.data[label_name]
 
-    def __call__(self,kfold=0,ordinal=True):
+    def __call__(self,kfold=0,ordinal=True,confusion_m=False):
         indie_var,labels=emit_nan(self.indie_var,self.labels)
 
         if not kfold:
             X_train, X_test,y_train,y_test=train_test_split(indie_var,labels,test_size=0.2)
 
             if ordinal:
-                clf=OrdinalClassifier(RandomForestClassifier(n_estimators=100))
+                self.clf=OrdinalClassifier(RandomForestClassifier(n_estimators=100))
             else:
-                clf=RandomForestClassifier(n_estimators=100)
-            clf.fit(X_train,y_train)
+                self.clf=RandomForestClassifier(n_estimators=100)
+            self.clf.fit(X_train,y_train)
 
-            y_pred=clf.predict(X_test)
+            y_pred=self.clf.predict(X_test)
 
             print("Accuracy: ",metrics.accuracy_score(y_test,y_pred))
+            if confusion_m:
+                matrix=metrics.confusion_matrix(y_test,y_pred)
+                return matrix
+            else:
+                return
 
 
         else:
             kf=KFold(n_splits=kfold,shuffle=True)
             if ordinal:
-                clf = OrdinalClassifier(RandomForestClassifier(n_estimators=100))
+                self.clf = OrdinalClassifier(RandomForestClassifier(n_estimators=100))
             else:
-                clf = RandomForestClassifier(n_estimators=100)
+                self.clf = RandomForestClassifier(n_estimators=100)
 
             acc_score=[]
 
+            y_pred_long=np.array([])
+            y_test_long=np.array([])
             for train_index,test_index in kf.split(indie_var):
                 X_train,X_test=indie_var.iloc[train_index,:],indie_var.iloc[test_index,:]
                 y_train,y_test=np.array(labels)[train_index],np.array(labels)[test_index]
 
-                clf.fit(X_train,y_train)
-                y_pred=clf.predict(X_test)
+                self.clf.fit(X_train,y_train)
+                y_pred=self.clf.predict(X_test)
+
+                y_pred_long=np.concatenate([y_pred_long,y_pred])
+                y_test_long=np.concatenate([y_test_long,y_test])
 
                 acc=metrics.accuracy_score(y_test, y_pred)
                 acc_score.append(acc)
 
+            #y_pred_long=np.ravel(y_pred_long)
+            #y_test_long=np.ravel(y_test_long)
             avg_acc_score=sum(acc_score)/kfold
 
             print('accuracy of each fold - {}'.format(acc_score))
             print('Avg accuracy: {}'.format(avg_acc_score))
+            if confusion_m:
+                matrix=metrics.confusion_matrix(y_test_long,y_pred_long)
+                return matrix
+            else:
+                return
 
 
         '''
