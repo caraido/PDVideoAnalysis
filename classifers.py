@@ -217,20 +217,5 @@ class RFClassifier:
             else:
                 return
 
-
-        '''
-        feature_imp = pd.Series(clf.feature_importances_, index=self.u_keys)
-
-        print('\n', feature_imp)
-
-        sns.barplot(x=feature_imp, y=feature_imp.index)
-
-        plt.xlabel('Feature Importance Score')
-        plt.ylabel('Features')
-        plt.title("Visualizing Important Features")
-        plt.show()
-        '''
-
-
 if __name__=='__main__':
     pass

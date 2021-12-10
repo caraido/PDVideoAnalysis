@@ -93,7 +93,7 @@ if __name__ == '__main__':
     rfc.task = 'Ftn' # announce task first, then label second
     # labels can be 'Overall', 'Bradykinesia', 'Dyskinesia'
     rfc.labels='Overall'
-    rfc.med='1'
+    #rfc.med='1'
     rfc(kfold=5,ordinal=True)
 
     ##################
