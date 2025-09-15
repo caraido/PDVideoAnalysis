@@ -40,8 +40,8 @@ The pipeline consists of:
   - 168 sessions (ON vs OFF medication states)  
 
 - **Key Findings:**  
-  - Overall score prediction accuracy: **61%**  
-  - Bradykinesia score prediction accuracy: **60%**  
+  - Overall score prediction accuracy: **61%** (4-class classification) 
+  - Bradykinesia score prediction accuracy: **60%**  (4-class classification) 
   - Strongest predictive features:  
     - **Gait:** Step frequency  
     - **Finger-to-nose:** Median elbow angular speed  
