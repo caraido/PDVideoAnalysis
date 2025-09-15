@@ -1,8 +1,8 @@
-# PDVideoAnalysis
+# PD Video Analysis Pipeline
 
 **A Machine Learning Pipeline with Computer-Vision Methods for Quantifying Standardized Motor Assessment in Parkinson’s Disease**
 
-This repository contains code and resources for using computer vision and machine learning to analyze standardized motor tasks in Parkinson’s disease (PD). The project was developed as a research project at Northwestern University and Shirley Ryan AbilityLab, and is summarized in the accompanying [poster](./poster.pdf).
+This repository contains code and resources for using computer vision and machine learning to analyze standardized motor tasks in Parkinson’s disease (PD). The project was developed as a research project at Northwestern University and Shirley Ryan AbilityLab, and is summarized in the accompanying [poster](./Poster.pdf).
 
 ---
 
@@ -47,7 +47,7 @@ The pipeline consists of:
     - **Finger-to-nose:** Median elbow angular speed  
 
 See the full poster for figures, results, and discussion:  
-📄 [Poster (PDF)](./poster.pdf)
+📄 [Poster (PDF)](./Poster.pdf)
 
 ---
 
